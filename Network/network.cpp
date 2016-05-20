@@ -7,20 +7,20 @@ struct NetworkImpl {
   }
   ~NetworkImpl() {}
 
-  Network::SocketIdentifierType createSocket(eSocketTypes type = eClientSocket);
-  quint64 allocateNextId(Network::SocketIdentifierSetType& socketsIds);
-  quint64 findMaxId(const Network::SocketIdentifierSetType& socketIds) const;
+  SocketIdentifierType createSocket(eSocketTypes type = eClientSocket);
+  quint64 allocateNextId(SocketIdentifierSetType& socketsIds);
+  quint64 findMaxId(const SocketIdentifierSetType& socketIds) const;
 
-  bool serverStartListening(Network::SocketIdentifierType serverSocketId, quint16 port);
-  bool clientConnectToHost(Network::SocketIdentifierType clientSocketId, QString ip, quint16 port);
+  bool serverStartListening(SocketIdentifierType serverSocketId, quint16 port);
+  bool clientConnectToHost(SocketIdentifierType clientSocketId, QString ip, quint16 port);
 
 private:
   Network* _this;
 
-  Network::ServerSocketsMapType _serverSockets;
-  Network::ClientSocketsMapType _clientSockets;
-  Network::SocketIdentifierSetType _activeServerSockets;
-  Network::SocketIdentifierSetType _activeClientSockets;
+  ServerSocketsMapType _serverSockets;
+  ClientSocketsMapType _clientSockets;
+  SocketIdentifierSetType _activeServerSockets;
+  SocketIdentifierSetType _activeClientSockets;
 };
 
 
@@ -30,9 +30,9 @@ Network::Network(QObject* parent):
 {
 }
 
-quint64 NetworkImpl::findMaxId(const Network::SocketIdentifierSetType& socketIds) const
+quint64 NetworkImpl::findMaxId(const SocketIdentifierSetType& socketIds) const
 {
-  Network::SocketIdentifierSetType::const_iterator i = socketIds.begin();
+  SocketIdentifierSetType::const_iterator i = socketIds.begin();
   quint64 maxId = 1;
   while (i != socketIds.end()) {
     quint64 currentId = *i;
@@ -42,7 +42,7 @@ quint64 NetworkImpl::findMaxId(const Network::SocketIdentifierSetType& socketIds
   return maxId;
 }
 
-bool NetworkImpl::serverStartListening(Network::SocketIdentifierType serverSocketId, quint16 port)
+bool NetworkImpl::serverStartListening(SocketIdentifierType serverSocketId, quint16 port)
 {
   if (_serverSockets.contains(serverSocketId)) {
     QTcpServer* server = _serverSockets.value(serverSocketId).data();
@@ -58,7 +58,7 @@ bool NetworkImpl::serverStartListening(Network::SocketIdentifierType serverSocke
   }
 }
 
-bool NetworkImpl::clientConnectToHost(Network::SocketIdentifierType clientSocketId, QString ip, quint16 port)
+bool NetworkImpl::clientConnectToHost(SocketIdentifierType clientSocketId, QString ip, quint16 port)
 {
   if (_clientSockets.contains(clientSocketId)) {
     QTcpSocket* client = _clientSockets.value(clientSocketId).data();
@@ -74,7 +74,7 @@ bool NetworkImpl::clientConnectToHost(Network::SocketIdentifierType clientSocket
   }
 }
 
-quint64 NetworkImpl::allocateNextId(Network::SocketIdentifierSetType& socketIds)
+quint64 NetworkImpl::allocateNextId(SocketIdentifierSetType& socketIds)
 {
   quint64 minId = 1;
   if (socketIds.isEmpty()) {
@@ -104,7 +104,7 @@ Network::~Network()
 
 }
 
-Network::SocketIdentifierType NetworkImpl::createSocket(eSocketTypes type)
+SocketIdentifierType NetworkImpl::createSocket(eSocketTypes type)
 {
   QSharedPointer<QTcpSocket> clSock;
   QSharedPointer<QTcpServer> srSock;
@@ -123,22 +123,22 @@ Network::SocketIdentifierType NetworkImpl::createSocket(eSocketTypes type)
   return quint64(0);
 }
 
-Network::SocketIdentifierType Network::createClientSocket()
+SocketIdentifierType Network::createClientSocket()
 {
   return _pimpl->createSocket(eClientSocket);
 }
 
-Network::SocketIdentifierType Network::createServerSocket()
+SocketIdentifierType Network::createServerSocket()
 {
   return _pimpl->createSocket(eServerSocket);
 }
 
-bool Network::serverStartListening(Network::SocketIdentifierType serverSocketId, quint16 port)
+bool Network::serverStartListening(SocketIdentifierType serverSocketId, quint16 port)
 {
   return _pimpl->serverStartListening(serverSocketId, port);
 }
 
-bool Network::clientConnectToHost(Network::SocketIdentifierType clientSocketId, QString ip, quint16 port)
+bool Network::clientConnectToHost(SocketIdentifierType clientSocketId, QString ip, quint16 port)
 {
   return _pimpl->clientConnectToHost(clientSocketId, ip, port);
 }
