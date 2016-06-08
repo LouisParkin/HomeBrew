@@ -1,0 +1,7 @@
+#ifndef NETWORK_DEFS
+#define NETWORK_DEFS
+
+#define LOWEST_SOCKET_ID 1
+
+#endif // NETWORK_DEFS
+

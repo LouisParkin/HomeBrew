@@ -17,7 +17,8 @@ SOURCES += network.cpp
 HEADERS += network.h \
     socket_types.h \
     connection_states.h \
-    commontypedefinitions.h
+    network_typedefinitions.h \
+    network_defs.h
 unix {
     target.path = /usr/lib
     INSTALLS += target
