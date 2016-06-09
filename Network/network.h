@@ -16,6 +16,12 @@ class Network : public QObject
   Q_OBJECT
 
 public:
+  static Network& getInstance()
+  {
+    static Network instance;
+    return instance;
+  }
+
   ~Network();
 
   SocketIdentifierType createClientSocket();
@@ -34,11 +40,14 @@ public:
   //  Network should provide send functionality, and keep callback function pointers to call when data is received.
 
   // IN PROGRESS:
-  //  Network should open, close and handle all events on sockets.
+  //  Network should open, close and handle all events on sockets like sending, receiving, and accepting incoming connections.
 
   // DONE
   //  Network Class should manage an infinite number of sockets.
   //  Network Class should manufacture the sockets and return a shared pointer to a socket (or connection handle).
+
+  private slots:
+  void newIncomingConnection();
 
 private:
 

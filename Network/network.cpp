@@ -17,14 +17,18 @@ struct NetworkImpl {
   bool serverStartListening(SocketIdentifierType serverSocketId, quint16 port);
   bool clientConnectToHost(SocketIdentifierType clientSocketId, QString url, quint16 port);
 
+  void newIncomingConnection(QTcpServer* fromWhichSocket);
+
 
 private:
   Network* _this;
 
-  ServerSocketsMapType _serverSockets;
-  ClientSocketsMapType _clientSockets;
-  SocketIdentifierSetType _activeServerSockets;
-  SocketIdentifierSetType _activeClientSockets;
+  TcpServerMapType _tcpServers;
+  SocketsMapType _outboundClientSockets;
+  SocketsMapType _inboundClientSockets;
+  SocketIdentifierSetType _activeTcpServers;
+  SocketIdentifierSetType _activeOutboundClientSockets;
+  SocketIdentifierSetType _activeInboundClientSockets;
 };
 
 
@@ -49,16 +53,24 @@ quint64 NetworkImpl::findMaxId(const SocketIdentifierSetType& socketIds) const
 bool NetworkImpl::serverStartListening(SocketIdentifierType serverSocketId, quint16 port)
 {
   // Check for valid socket.
-  if (_serverSockets.contains(serverSocketId)) {
+  if (_tcpServers.contains(serverSocketId)) {
     // Get a raw pointer to the socket.
-    QTcpServer* server = _serverSockets.value(serverSocketId).data();
+    QTcpServer* server = _tcpServers.value(serverSocketId).data();
     // If open, close
     if (server->isListening()) {
+      QObject::disconnect(server, SIGNAL(newConnection()), _this, SLOT(newIncomingConnection()));
       server->close();
     }
 
+    bool isListening = server->listen(QHostAddress::AnyIPv4, port);
+
+    if(isListening)
+    {
+      QObject::connect(server, SIGNAL(newConnection()), _this, SLOT(newIncomingConnection()));
+    }
+
     // Return bool that indicates listen action success or failure.
-    return server->listen(QHostAddress::AnyIPv4, port);
+    return isListening;
   }
   else {
     // Not a valid socket, cannot be opened.
@@ -69,9 +81,9 @@ bool NetworkImpl::serverStartListening(SocketIdentifierType serverSocketId, quin
 bool NetworkImpl::clientConnectToHost(SocketIdentifierType clientSocketId, QString url, quint16 port)
 {
   // Check for valid socket.
-  if (_clientSockets.contains(clientSocketId)) {
+  if (_outboundClientSockets.contains(clientSocketId)) {
     // Get a raw pointer to the socket.
-    QTcpSocket* client = _clientSockets.value(clientSocketId).data();
+    QTcpSocket* client = _outboundClientSockets.value(clientSocketId).data();
     if (client->isOpen()) {
       // If open, close it.
       client->close();
@@ -86,6 +98,15 @@ bool NetworkImpl::clientConnectToHost(SocketIdentifierType clientSocketId, QStri
   else {
     // Not a valid socket, cannot be opened.
     return false;
+  }
+}
+
+void NetworkImpl::newIncomingConnection(QTcpServer* fromWhichSocket)
+{
+  SocketType inboundConnection = SocketType(fromWhichSocket->nextPendingConnection());
+  if(inboundConnection->isOpen())
+  {
+    _inboundClientSockets.insert(allocateNextId(_activeInboundClientSockets), inboundConnection);
   }
 }
 
@@ -142,20 +163,20 @@ SocketIdentifierType NetworkImpl::createSocket(eSocketTypes type)
     clSock.create();
 
     // Adds it to the internal client socket pool with a unique ID allocated to find it again.
-    _clientSockets.insert(allocateNextId(_activeClientSockets), clSock);
+    _outboundClientSockets.insert(allocateNextId(_activeOutboundClientSockets), clSock);
 
     // Returns the value of the unique identifier
-    return _clientSockets.key(clSock);
+    return _outboundClientSockets.key(clSock);
   }
   case eServerSocket: {
     // Creates an instance within the shared pointer of type QTcpServer
     srSock.create();
 
     // Adds it to the internal server socket pool with a unique ID allocated to find it again.
-    _serverSockets.insert(allocateNextId(_activeServerSockets), srSock);
+    _tcpServers.insert(allocateNextId(_activeTcpServers), srSock);
 
     // Returns the value of the unique identifier
-    return _serverSockets.key(srSock);
+    return _tcpServers.key(srSock);
   }
   }
   // If type-checking of parameter 'type' fails, we return a very much invalid value.
@@ -166,13 +187,13 @@ void NetworkImpl::closeSocketConnection(SocketIdentifierType socket, eSocketType
 {
   switch (type) {
   case eClientSocket:
-    if (_clientSockets.contains(socket)) {
-      _clientSockets.value(socket)->close();
+    if (_outboundClientSockets.contains(socket)) {
+      _outboundClientSockets.value(socket)->close();
     }
     break;
   case eServerSocket:
-    if (_serverSockets.contains(socket)) {
-      _serverSockets.value(socket)->close();
+    if (_tcpServers.contains(socket)) {
+      _tcpServers.value(socket)->close();
     }
     break;
   }
@@ -182,8 +203,8 @@ void NetworkImpl::deleteSocket(SocketIdentifierType socket, eSocketTypes type)
 {
   switch (type) {
   case eClientSocket:
-    if (_clientSockets.contains(socket)) {
-      ClientSocketType sock = _clientSockets.take(socket);
+    if (_outboundClientSockets.contains(socket)) {
+      SocketType sock = _outboundClientSockets.take(socket);
       if(sock->isOpen())
       {
         sock->close();
@@ -192,8 +213,8 @@ void NetworkImpl::deleteSocket(SocketIdentifierType socket, eSocketTypes type)
     }
     break;
   case eServerSocket:
-    if (_serverSockets.contains(socket)) {
-      ServerSocketType sock = _serverSockets.take(socket);
+    if (_tcpServers.contains(socket)) {
+      TcpServerType sock = _tcpServers.take(socket);
       if(sock->isListening())
       {
         sock->close();
@@ -234,6 +255,12 @@ void Network::deleteServerSocket(SocketIdentifierType serverSocketId)
 void Network::deleteClientSocket(SocketIdentifierType clientSocketId)
 {
   _pimpl->deleteSocket(clientSocketId);
+}
+
+void Network::newIncomingConnection()
+{
+  QTcpServer* fromWhichSocket = dynamic_cast<QTcpServer*>(sender());
+  _pimpl->newIncomingConnection(fromWhichSocket);
 }
 
 ///
